@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="FieldCoach">
+<meta name="theme-color" content="#000000">
+<title>FieldCoach</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #E8302A;
+  --red-dim: rgba(232,48,42,0.1);
+  --red-border: rgba(232,48,42,0.4);
+  --bg: #000000;
+  --surface: #111111;
+  --surface-2: #1A1A1A;
+  --surface-3: #222222;
+  --border: rgba(255,255,255,0.1);
+  --border-bright: rgba(255,255,255,0.2);
+  --text: #FFFFFF;
+  --text-dim: #AAAAAA;
+  --text-muted: #555555;
+  --green: #2ecc71;
+  --green-dim: rgba(46,204,113,0.12);
+  --green-border: rgba(46,204,113,0.4);
+  --nav-h: 70px;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+html,body { height:100%; overflow:hidden; font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+#app { height:100vh; height:-webkit-fill-available; display:flex; flex-direction:column; overflow:hidden; }
+
+/* SCREENS */
+.screen { display:none; flex-direction:column; flex:1; overflow:hidden; }
+.screen.active { display:flex; animation:fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+.scroll-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding-bottom:calc(var(--nav-h) + var(--safe-b) + 24px); }
+
+/* HEADER */
+.app-header { padding:18px 20px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border-bright); background:var(--bg); flex-shrink:0; }
+.wordmark { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px; color:#fff; }
+.wordmark em { color:var(--red); font-style:normal; }
+.header-pill { font-family:'DM Mono',monospace; font-size:10px; color:var(--text-muted); letter-spacing:1.5px; text-transform:uppercase; border:1px solid var(--border-bright); padding:5px 12px; border-radius:20px; }
+
+/* NAV */
+#bottom-nav { display:none; position:fixed; bottom:0; left:0; right:0; height:calc(var(--nav-h) + var(--safe-b)); background:#000; border-top:1px solid var(--border-bright); z-index:100; padding-bottom:var(--safe-b); }
+#bottom-nav.visible { display:flex; }
+.nav-items { display:flex; width:100%; height:var(--nav-h); }
+.nav-btn { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; background:none; border:none; color:var(--text-muted); cursor:pointer; transition:color 0.2s; position:relative; }
+.nav-btn.active { color:var(--red); }
+.nav-btn.active::before { content:''; position:absolute; top:0; left:50%; transform:translateX(-50%); width:32px; height:2px; background:var(--red); border-radius:0 0 2px 2px; }
+.nav-icon { width:22px; height:22px; }
+.nav-label { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:1px; text-transform:uppercase; }
+
+/* BUTTONS */
+.btn-primary { background:var(--red); color:#fff; border:none; border-radius:14px; padding:19px 24px; font-family:'Bebas Neue',sans-serif; font-size:21px; letter-spacing:2px; cursor:pointer; width:100%; transition:all 0.15s; -webkit-appearance:none; }
+.btn-primary:active { transform:scale(0.98); background:#c0251f; }
+.btn-primary:disabled { background:var(--surface-3); color:var(--text-muted); cursor:not-allowed; }
+.btn-ghost { background:transparent; color:var(--text-dim); border:1px solid var(--border-bright); border-radius:14px; padding:16px 24px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:500; cursor:pointer; width:100%; transition:all 0.15s; -webkit-appearance:none; margin-top:12px; }
+.btn-ghost:active { background:var(--surface-2); }
+
+/* TOAST */
+.toast { position:fixed; top:20px; left:50%; transform:translateX(-50%) translateY(-80px); background:var(--green); color:#fff; border-radius:10px; padding:13px 22px; font-family:'DM Mono',monospace; font-size:13px; letter-spacing:1px; z-index:999; transition:transform 0.3s ease; white-space:nowrap; pointer-events:none; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════
+   ONBOARDING
+══════════════════════════════ */
+#screen-onboard { overflow-y:auto; -webkit-overflow-scrolling:touch; background:#000; }
+
+.ob-welcome {
+  min-height:100vh;
+  min-height:-webkit-fill-available;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:64px 32px 52px;
+  position:relative;
+  overflow:hidden;
+}
+.ob-welcome::before {
+  content:'';
+  position:absolute;
+  top:-80px; right:-80px;
+  width:360px; height:360px;
+  background:radial-gradient(circle, rgba(232,48,42,0.15) 0%, transparent 65%);
+  border-radius:50%;
+  pointer-events:none;
+}
+.ob-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  letter-spacing:2px;
+  color:var(--red);
+  text-transform:uppercase;
+  margin-bottom:32px;
+}
+.ob-badge-dot { width:7px; height:7px; border-radius:50%; background:var(--red); animation:blink 2s ease infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+.ob-headline {
+  font-family:'Bebas Neue',sans-serif;
+  font-size:76px;
+  line-height:0.9;
+  letter-spacing:1px;
+  color:#fff;
+  margin-bottom:28px;
+}
+.ob-headline em { color:var(--red); font-style:normal; display:block; }
+
+.ob-pitch {
+  font-size:16px;
+  color:var(--text-dim);
+  line-height:1.7;
+  font-weight:300;
+  margin-bottom:52px;
+}
+
+.ob-start-btn {
+  background:var(--red);
+  color:#fff;
+  border:none;
+  border-radius:16px;
+  padding:22px 32px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:23px;
+  letter-spacing:2px;
+  cursor:pointer;
+  width:100%;
+  transition:all 0.15s;
+  -webkit-appearance:none;
+  position:relative;
+  z-index:1;
+}
+.ob-start-btn:active { transform:scale(0.98); background:#c0251f; }
+.ob-footnote { margin-top:16px; font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; color:var(--text-muted); text-align:center; }
+
+/* Questions */
+.ob-questions { display:none; flex-direction:column; min-height:100vh; min-height:-webkit-fill-available; }
+.ob-questions.active { display:flex; }
+
+.ob-q-header { padding:20px 24px 16px; border-bottom:1px solid var(--border-bright); flex-shrink:0; background:#000; }
+.ob-progress { display:flex; gap:5px; margin-bottom:14px; }
+.ob-seg { flex:1; height:3px; background:var(--surface-3); border-radius:2px; transition:background 0.4s; }
+.ob-seg.done { background:var(--red); }
+.ob-seg.active { background:rgba(232,48,42,0.5); }
+.ob-q-label { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:2px; color:var(--text-muted); text-transform:uppercase; }
+
+.ob-q-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:28px 24px; }
+.q-text { font-size:22px; font-weight:600; line-height:1.3; margin-bottom:24px; color:#fff; }
+
+/* Name */
+.name-wrap { position:relative; margin-bottom:10px; }
+.name-input { width:100%; background:var(--surface); border:2px solid var(--border-bright); border-radius:14px; padding:20px 60px 20px 20px; color:#fff; font-family:'DM Sans',sans-serif; font-size:18px; outline:none; transition:border-color 0.2s; -webkit-appearance:none; }
+.name-input:focus { border-color:var(--red); }
+.name-input::placeholder { color:var(--text-muted); }
+.name-mic { position:absolute; right:14px; top:50%; transform:translateY(-50%); background:var(--surface-2); border:1px solid var(--border-bright); border-radius:10px; width:38px; height:38px; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:all 0.15s; -webkit-appearance:none; }
+.name-mic.listening { background:var(--red); border-color:var(--red); animation:micPulse 1s ease infinite; }
+@keyframes micPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.voice-hint { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; color:var(--text-muted); margin-top:10px; }
+
+/* Choices */
+.choices { display:flex; flex-direction:column; gap:12px; margin-bottom:8px; }
+.choice {
+  background:var(--surface);
+  border:2px solid var(--border-bright);
+  border-radius:14px;
+  padding:20px 52px 20px 20px;
+  cursor:pointer;
+  transition:all 0.15s;
+  position:relative;
+}
+.choice:active { transform:scale(0.98); }
+.choice.selected { border-color:var(--red); background:var(--red-dim); }
+.choice.selected::after { content:'✓'; position:absolute; right:18px; top:50%; transform:translateY(-50%); color:var(--red); font-size:16px; font-weight:700; }
+.choice-title { font-size:16px; font-weight:500; color:#fff; line-height:1.35; }
+.choice-sub { font-size:13px; color:var(--text-dim); margin-top:6px; line-height:1.4; font-weight:300; font-style:italic; }
+
+/* Pick 2 */
+.pick-hint {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:var(--red-dim);
+  border:1.5px solid var(--red-border);
+  border-radius:10px;
+  padding:10px 16px;
+  margin-bottom:18px;
+  font-family:'DM Mono',monospace;
+  font-size:12px;
+  letter-spacing:1px;
+  color:var(--red);
+  text-transform:uppercase;
+  font-weight:500;
+}
+.pick-count-badge {
+  background:var(--red);
+  color:#fff;
+  border-radius:6px;
+  padding:2px 8px;
+  font-size:13px;
+  font-weight:700;
+  min-width:24px;
+  text-align:center;
+}
+
+.ob-q-footer { padding:20px 24px; padding-bottom:calc(20px + var(--safe-b)); border-top:1px solid var(--border-bright); flex-shrink:0; background:#000; }
+
+/* ══════════════════════════════
+   HOME
+══════════════════════════════ */
+.top-trend {
+  margin:20px;
+  background:var(--surface);
+  border:1px solid var(--border-bright);
+  border-radius:20px;
+  padding:28px;
+  position:relative;
+  overflow:hidden;
+}
+.top-trend::before {
+  content:'';
+  position:absolute;
+  top:-60px; right:-60px;
+  width:220px; height:220px;
+  background:radial-gradient(circle, rgba(232,48,42,0.12) 0%, transparent 65%);
+  border-radius:50%;
+  pointer-events:none;
+}
+.tt-label { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--red); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.tt-label-dot { width:6px; height:6px; border-radius:50%; background:var(--red); }
+.tt-main { font-family:'Bebas Neue',sans-serif; font-size:56px; line-height:0.95; color:#fff; margin-bottom:12px; }
+.tt-sub { font-size:14px; color:var(--text-dim); line-height:1.65; font-weight:300; }
+.tt-cta { margin-top:20px; display:inline-flex; align-items:center; gap:8px; font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1.5px; color:var(--red); text-transform:uppercase; cursor:pointer; border-bottom:1px solid var(--red-border); padding-bottom:2px; }
+
+/* Grid */
+.home-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:0 20px 20px; }
+
+.grid-card {
+  background:var(--surface);
+  border:1px solid var(--border-bright);
+  border-radius:18px;
+  padding:22px 18px;
+  cursor:pointer;
+  transition:all 0.15s;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  min-height:115px;
+  position:relative;
+  overflow:hidden;
+}
+.grid-card:active { transform:scale(0.97); background:var(--surface-2); }
+
+.grid-card.span-2 {
+  grid-column:span 2;
+  flex-direction:row;
+  align-items:center;
+  min-height:auto;
+  padding:22px 24px;
+  border-color:var(--red-border);
+  background:var(--red-dim);
+  gap:18px;
+}
+.grid-card.span-2:active { transform:scale(0.98); }
+
+.card-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.icon-rec { background:var(--red); }
+.icon-other { background:var(--surface-2); border:1px solid var(--border-bright); }
+.card-icon svg { width:20px; height:20px; }
+
+.card-text {}
+.card-title { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--text-dim); }
+.card-title-lg { font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:1px; color:var(--red); margin-bottom:2px; }
+.card-sub { font-size:12px; color:var(--text-muted); font-weight:300; }
+.card-v2 { position:absolute; bottom:12px; right:12px; font-family:'DM Mono',monospace; font-size:9px; letter-spacing:1px; color:var(--text-muted); border:1px solid var(--border); padding:3px 8px; border-radius:4px; }
+
+/* ══════════════════════════════
+   RECORD
+══════════════════════════════ */
+.coaching-focus { margin:16px 20px 0; background:var(--surface); border:1px solid var(--border-bright); border-left:3px solid var(--red); border-radius:12px; padding:16px 18px; }
+.cf-label { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:2px; color:var(--red); text-transform:uppercase; margin-bottom:8px; }
+.cf-text { font-size:14px; color:var(--text-dim); line-height:1.55; font-weight:300; }
+
+.rec-meta { padding:16px 20px; }
+.meta-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.meta-label { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:1.5px; color:var(--text-muted); text-transform:uppercase; margin-bottom:7px; display:block; }
+.meta-input { width:100%; background:var(--surface); border:1.5px solid var(--border-bright); border-radius:10px; padding:11px 10px; color:#fff; font-family:'DM Sans',sans-serif; font-size:14px; outline:none; transition:border-color 0.2s; -webkit-appearance:none; }
+.meta-input:focus { border-color:var(--red); }
+.meta-input::placeholder { color:var(--text-muted); font-size:13px; }
+
+.rec-stage { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:20px; }
+.rec-status-label { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:3px; color:var(--text-muted); text-transform:uppercase; }
+.rec-timer { font-family:'Bebas Neue',sans-serif; font-size:72px; letter-spacing:4px; color:#fff; line-height:1; transition:color 0.3s; text-align:center; }
+.rec-timer.live { color:var(--red); }
+
+.rec-btn-outer { position:relative; display:flex; align-items:center; justify-content:center; margin:8px 0; }
+.rec-pulse { position:absolute; inset:-10px; border-radius:24px; border:1.5px solid var(--red); opacity:0; pointer-events:none; }
+.rec-pulse.on { animation:recPulse 1.8s ease-out infinite; }
+@keyframes recPulse { 0%{transform:scale(1);opacity:0.6} 100%{transform:scale(1.18);opacity:0} }
+
+.rec-btn {
+  width:230px;
+  height:76px;
+  border-radius:20px;
+  border:none;
+  background:var(--red);
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+  transition:all 0.2s;
+  position:relative;
+  z-index:1;
+  -webkit-appearance:none;
+  box-shadow: 0 8px 32px rgba(232,48,42,0.35);
+}
+.rec-btn:active { transform:scale(0.96); box-shadow:0 4px 16px rgba(232,48,42,0.2); }
+.rec-btn.recording { background:var(--surface); border:2px solid var(--red); box-shadow:none; }
+
+.rec-icon { position:relative; width:28px; height:28px; flex-shrink:0; }
+.rec-icon-ring { width:28px; height:28px; border-radius:50%; border:2.5px solid rgba(255,255,255,0.7); position:absolute; top:0; left:0; transition:all 0.2s; }
+.rec-icon-dot { width:13px; height:13px; border-radius:50%; background:#fff; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); transition:all 0.25s; }
+.rec-btn.recording .rec-icon-ring { border-color:rgba(232,48,42,0.6); }
+.rec-btn.recording .rec-icon-dot { border-radius:4px; width:13px; height:13px; background:var(--red); }
+
+.rec-btn-label { font-family:'Bebas Neue',sans-serif; font-size:22px; letter-spacing:3px; color:#fff; transition:color 0.2s; }
+.rec-btn.recording .rec-btn-label { color:var(--red); }
+
+.rec-hint { font-size:13px; color:var(--text-muted); font-weight:300; }
+
+/* ══════════════════════════════
+   POST FLOW
+══════════════════════════════ */
+.post-screen { display:none; position:fixed; inset:0; background:#000; z-index:200; flex-direction:column; }
+.post-screen.active { display:flex; animation:slideUp 0.3s ease; }
+@keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+
+.post-header { padding:22px 24px 18px; border-bottom:1px solid var(--border-bright); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.post-title { font-family:'Bebas Neue',sans-serif; font-size:30px; letter-spacing:1px; color:#fff; }
+.post-step { font-family:'DM Mono',monospace; font-size:11px; letter-spacing:1px; color:var(--text-muted); }
+
+.post-body { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:24px; padding-bottom:calc(32px + var(--safe-b)); }
+
+/* Confirmation */
+.conf-card { background:var(--surface); border:1px solid var(--border-bright); border-radius:20px; padding:32px 24px; display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:28px; }
+.conf-check { width:56px; height:56px; border-radius:50%; background:var(--green-dim); border:2px solid var(--green-border); display:flex; align-items:center; justify-content:center; }
+.conf-check svg { width:26px; height:26px; stroke:var(--green); stroke-width:2.5; fill:none; }
+.conf-label { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:2px; color:var(--green); text-transform:uppercase; }
+.conf-duration { font-family:'Bebas Neue',sans-serif; font-size:60px; letter-spacing:3px; color:#fff; line-height:1; }
+.conf-meta-text { font-size:13px; color:var(--text-muted); font-weight:300; }
+
+/* Assessment fields */
+.assess-block {
+  background:var(--surface);
+  border:2px solid var(--border-bright);
+  border-radius:18px;
+  padding:22px;
+  margin-bottom:16px;
+}
+.assess-label {
+  font-size:17px;
+  font-weight:600;
+  color:#fff;
+  margin-bottom:14px;
+  line-height:1.3;
+}
+.assess-sublabel {
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  letter-spacing:1.5px;
+  color:var(--red);
+  text-transform:uppercase;
+  margin-bottom:14px;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.voice-wrap { position:relative; }
+.voice-ta {
+  width:100%;
+  background:var(--surface-2);
+  border:1.5px solid var(--border-bright);
+  border-radius:12px;
+  padding:16px 56px 16px 16px;
+  color:#fff;
+  font-family:'DM Sans',sans-serif;
+  font-size:15px;
+  font-weight:300;
+  line-height:1.55;
+  outline:none;
+  resize:none;
+  min-height:90px;
+  transition:border-color 0.2s;
+  -webkit-appearance:none;
+}
+.voice-ta:focus { border-color:var(--red); }
+.voice-ta::placeholder { color:var(--text-muted); font-style:italic; }
+
+.field-mic-btn {
+  position:absolute;
+  right:12px;
+  bottom:12px;
+  background:var(--red);
+  border:none;
+  border-radius:10px;
+  width:38px;
+  height:38px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  transition:all 0.15s;
+  -webkit-appearance:none;
+  box-shadow:0 4px 12px rgba(232,48,42,0.3);
+}
+.field-mic-btn:active { transform:scale(0.93); }
+.field-mic-btn.listening { background:var(--surface-3); border:1.5px solid var(--red); box-shadow:none; animation:micPulse 1s ease infinite; }
+.field-mic-btn.listening svg { stroke:var(--red); }
+.field-mic-btn svg { width:18px; height:18px; stroke:#fff; stroke-width:2; fill:none; }
+
+.mic-hint { font-family:'DM Mono',monospace; font-size:10px; letter-spacing:1px; color:var(--text-muted); margin-top:10px; }
+
+/* Almost ready */
+.almost-card { background:var(--surface); border:1px solid var(--border-bright); border-radius:20px; padding:32px 24px; text-align:center; margin-bottom:20px; position:relative; overflow:hidden; }
+.almost-card::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 0%, rgba(232,48,42,0.08) 0%, transparent 55%); pointer-events:none; }
+.ar-ring { width:68px; height:68px; border-radius:50%; background:var(--red-dim); border:2px solid var(--red-border); display:flex; align-items:center; justify-content:center; margin:0 auto 20px; animation:arPulse 2.2s ease infinite; position:relative; z-index:1; }
+.ar-ring svg { width:30px; height:30px; stroke:var(--red); stroke-width:2; fill:none; }
+@keyframes arPulse { 0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(232,48,42,0.3)} 50%{transform:scale(1.04);box-shadow:0 0 0 16px rgba(232,48,42,0)} }
+.ar-title { font-family:'Bebas Neue',sans-serif; font-size:36px; letter-spacing:1px; margin-bottom:12px; position:relative; z-index:1; color:#fff; }
+.ar-sub { font-size:14px; color:var(--text-dim); font-weight:300; line-height:1.65; position:relative; z-index:1; }
+
+/* ══════════════════════════════
+   SESSIONS
+══════════════════════════════ */
+.empty-state { padding:72px 28px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:16px; }
+.empty-graphic { width:72px; height:72px; border-radius:18px; background:var(--surface); border:1px solid var(--border-bright); display:flex; align-items:center; justify-content:center; }
+.empty-graphic svg { width:32px; height:32px; stroke:var(--text-muted); stroke-width:1.5; fill:none; }
+.empty-title { font-family:'Bebas Neue',sans-serif; font-size:32px; letter-spacing:1px; color:var(--text-dim); }
+.empty-sub { font-size:14px; color:var(--text-muted); line-height:1.65; max-width:260px; font-weight:300; }
+
+.session-card { margin:0 20px 14px; background:var(--surface); border:1px solid var(--border-bright); border-radius:16px; overflow:hidden; cursor:pointer; transition:all 0.15s; }
+.session-card:active { background:var(--surface-2); border-color:var(--red-border); }
+.sc-top { padding:18px; display:flex; align-items:center; gap:14px; }
+.sc-indicator { width:9px; height:9px; border-radius:50%; background:var(--text-muted); flex-shrink:0; }
+.sc-info { flex:1; min-width:0; }
+.sc-name { font-size:16px; font-weight:500; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sc-meta { font-family:'DM Mono',monospace; font-size:11px; color:var(--text-muted); margin-top:4px; }
+.sc-dur { font-family:'DM Mono',monospace; font-size:14px; color:var(--text-dim); flex-shrink:0; }
+</style>
+</head>
+<body>
+<div id="app">
+<div class="toast" id="toast"></div>
+
+<!-- ══════════════════════════════
+     ONBOARDING
+══════════════════════════════ -->
+<div class="screen active" id="screen-onboard">
+
+  <div class="ob-welcome" id="ob-welcome">
+    <div class="ob-badge"><div class="ob-badge-dot"></div>Your Personal Sales Coach</div>
+    <div class="ob-headline">Built For<br>Reps Who<br><em>Want More</em></div>
+    <div class="ob-pitch">Most coaching tools are built for managers. This one is built for you — the rep in the driveway, trying to get better on your own terms.</div>
+    <button class="ob-start-btn" onclick="showQuestions()">Let's Build Your Profile →</button>
+    <div class="ob-footnote">5 questions · takes 60 seconds</div>
+  </div>
+
+  <div class="ob-questions" id="ob-questions">
+    <div class="ob-q-header">
+      <div class="ob-progress">
+        <div class="ob-seg active" id="seg-1"></div>
+        <div class="ob-seg" id="seg-2"></div>
+        <div class="ob-seg" id="seg-3"></div>
+        <div class="ob-seg" id="seg-4"></div>
+        <div class="ob-seg" id="seg-5"></div>
+      </div>
+      <div class="ob-q-label" id="ob-q-label">Question 1 of 5</div>
+    </div>
+
+    <div class="ob-q-body" id="ob-q-body">
+
+      <!-- Q1 -->
+      <div id="ob-q1">
+        <div class="q-text">What's your name?</div>
+        <div class="name-wrap">
+          <input class="name-input" type="text" id="input-name" placeholder="First name" maxlength="40" oninput="checkQ1()" autocomplete="given-name">
+          <button class="name-mic" id="name-mic-btn" onclick="startVoiceName()">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          </button>
+        </div>
+        <div class="voice-hint">🎤 Tap the mic and say your name</div>
+      </div>
+
+      <!-- Q2 -->
+      <div id="ob-q2" style="display:none">
+        <div class="q-text">Which one sounds most like how you sell?</div>
+        <div class="choices">
+          <div class="choice" data-q="style" data-v="direct" onclick="pickOne(this)"><div class="choice-title">I'm direct — I get to the point and ask for the sale early</div></div>
+          <div class="choice" data-q="style" data-v="consultative" onclick="pickOne(this)"><div class="choice-title">I ask a lot of questions and listen more than I talk</div></div>
+          <div class="choice" data-q="style" data-v="relationship" onclick="pickOne(this)"><div class="choice-title">I build a strong personal connection before anything else</div></div>
+          <div class="choice" data-q="style" data-v="challenger" onclick="pickOne(this)"><div class="choice-title">I educate the customer and shift how they're thinking about the problem</div></div>
+        </div>
+      </div>
+
+      <!-- Q3 -->
+      <div id="ob-q3" style="display:none">
+        <div class="q-text">Where does the sale most often get hard?</div>
+        <div class="pick-hint">
+          <span>Pick your top 2</span>
+          <span class="pick-count-badge" id="pick-badge">0 / 2</span>
+        </div>
+        <div class="choices">
+          <div class="choice" data-q="struggles" data-v="discovery" onclick="pickTwo(this)"><div class="choice-title">Discovery — I don't dig deep enough</div></div>
+          <div class="choice" data-q="struggles" data-v="emotional" onclick="pickTwo(this)"><div class="choice-title">Getting the customer to open up emotionally</div></div>
+          <div class="choice" data-q="struggles" data-v="trust" onclick="pickTwo(this)"><div class="choice-title">Building trust</div></div>
+          <div class="choice" data-q="struggles" data-v="rapport" onclick="pickTwo(this)"><div class="choice-title">Building rapport</div></div>
+          <div class="choice" data-q="struggles" data-v="urgency" onclick="pickTwo(this)"><div class="choice-title">Building urgency</div></div>
+          <div class="choice" data-q="struggles" data-v="presenting" onclick="pickTwo(this)"><div class="choice-title">Presenting — too technical or feature-heavy</div></div>
+          <div class="choice" data-q="struggles" data-v="objections" onclick="pickTwo(this)"><div class="choice-title">Objections — price or "let me think about it"</div></div>
+          <div class="choice" data-q="struggles" data-v="close" onclick="pickTwo(this)"><div class="choice-title">The close — I hesitate to ask directly</div></div>
+          <div class="choice" data-q="struggles" data-v="control" onclick="pickTwo(this)"><div class="choice-title">Maintaining control of the conversation</div></div>
+          <div class="choice" data-q="struggles" data-v="signals" onclick="pickTwo(this)"><div class="choice-title">Reading buying signals</div></div>
+        </div>
+      </div>
+
+      <!-- Q4 -->
+      <div id="ob-q4" style="display:none">
+        <div class="q-text">What do you most want your coach to help you fix?</div>
+        <div class="choices">
+          <div class="choice" data-q="goal" data-v="close_money" onclick="pickOne(this)"><div class="choice-title">I want to stop leaving money on the table at the close</div></div>
+          <div class="choice" data-q="goal" data-v="understand_losses" onclick="pickOne(this)"><div class="choice-title">I want to understand why I lose deals I felt good about</div></div>
+          <div class="choice" data-q="goal" data-v="consistency" onclick="pickOne(this)"><div class="choice-title">I want to be more consistent — fewer bad days dragging down my average</div></div>
+          <div class="choice" data-q="goal" data-v="faster" onclick="pickOne(this)"><div class="choice-title">I want to get better faster — I'm done learning the slow way</div></div>
+        </div>
+      </div>
+
+      <!-- Q5 -->
+      <div id="ob-q5" style="display:none">
+        <div class="q-text">After a tough call, how do you want your coach to come at you?</div>
+        <div class="choices">
+          <div class="choice" data-q="tone" data-v="straight" onclick="pickOne(this)">
+            <div class="choice-title">Give it to me straight</div>
+            <div class="choice-sub">Wins and gaps, no particular order — just tell me what happened</div>
+          </div>
+          <div class="choice" data-q="tone" data-v="wins_first" onclick="pickOne(this)">
+            <div class="choice-title">Wins first</div>
+            <div class="choice-sub">Tell me what's working before we get into what needs work</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="ob-q-footer">
+      <button class="btn-primary" id="ob-next-btn" onclick="obNext()" disabled>Continue</button>
+      <button class="btn-ghost" id="ob-back-btn" onclick="obBack()" style="display:none">← Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     HOME
+══════════════════════════════ -->
+<div class="screen" id="screen-home">
+  <div class="app-header">
+    <div class="wordmark">Field<em>Coach</em></div>
+    <div class="header-pill" id="home-name-pill">REP</div>
+  </div>
+  <div class="scroll-body">
+    <div class="top-trend">
+      <div class="tt-label"><div class="tt-label-dot"></div>Top Trend</div>
+      <div class="tt-main" id="tt-main">Session 1<br>Ready</div>
+      <div class="tt-sub" id="tt-sub">Your coaching starts the moment you hit record. Everything builds from call one.</div>
+      <div class="tt-cta" id="tt-cta" onclick="switchScreen('record')">→ Start your first recording</div>
+    </div>
+
+    <div class="home-grid">
+      <div class="grid-card span-2" onclick="switchScreen('record')">
+        <div class="card-icon icon-rec">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3" fill="#fff" stroke="none"/></svg>
+        </div>
+        <div class="card-text">
+          <div class="card-title-lg">New Recording</div>
+          <div class="card-sub">Start a new call session</div>
+        </div>
+      </div>
+
+      <div class="grid-card" onclick="switchScreen('sessions')">
+        <div class="card-icon icon-other">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>
+        </div>
+        <div class="card-title">Past Sessions</div>
+      </div>
+
+      <div class="grid-card" onclick="showComingSoon('Library')">
+        <div class="card-icon icon-other">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <div class="card-title">Library</div>
+        <div class="card-v2">V2</div>
+      </div>
+
+      <div class="grid-card" onclick="showComingSoon('Coach\'s Corner')">
+        <div class="card-icon icon-other">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </div>
+        <div class="card-title">Coach's Corner</div>
+        <div class="card-v2">V2</div>
+      </div>
+
+      <div class="grid-card" onclick="showComingSoon('Pre-Call Prep')">
+        <div class="card-icon icon-other">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div class="card-title">Pre-Call Prep</div>
+        <div class="card-v2">V2</div>
+      </div>
+
+      <div class="grid-card" onclick="showComingSoon('Roleplay')">
+        <div class="card-icon icon-other">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div class="card-title">Roleplay</div>
+        <div class="card-v2">V2</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     RECORD
+══════════════════════════════ -->
+<div class="screen" id="screen-record">
+  <div class="app-header">
+    <div class="wordmark">Field<em>Coach</em></div>
+    <div class="header-pill">Record</div>
+  </div>
+  <div class="coaching-focus" id="rec-focus" style="display:none">
+    <div class="cf-label">Today's Focus</div>
+    <div class="cf-text" id="rec-focus-text"></div>
+  </div>
+  <div class="rec-meta">
+    <div class="meta-row">
+      <div><label class="meta-label">Name / Address</label><input class="meta-input" type="text" id="meta-name" placeholder="Optional"></div>
+      <div><label class="meta-label" id="tag1-label">Tag 1</label><input class="meta-input" type="text" id="meta-tag1" placeholder="Optional"></div>
+      <div><label class="meta-label" id="tag2-label">Tag 2</label><input class="meta-input" type="text" id="meta-tag2" placeholder="Optional"></div>
+    </div>
+  </div>
+  <div class="rec-stage">
+    <div class="rec-status-label" id="rec-status">Ready</div>
+    <div class="rec-timer" id="rec-timer">0:00:00</div>
+    <div class="rec-btn-outer">
+      <div class="rec-pulse" id="rec-pulse"></div>
+      <button class="rec-btn" id="rec-btn" onclick="toggleRecord()">
+        <div class="rec-icon"><div class="rec-icon-ring"></div><div class="rec-icon-dot"></div></div>
+        <div class="rec-btn-label" id="rec-btn-label">Record</div>
+      </button>
+    </div>
+    <div class="rec-hint" id="rec-hint">Tap to start recording</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     PAST SESSIONS
+══════════════════════════════ -->
+<div class="screen" id="screen-sessions">
+  <div class="app-header">
+    <div class="wordmark">Field<em>Coach</em></div>
+    <div class="header-pill">Sessions</div>
+  </div>
+  <div class="scroll-body">
+    <div class="empty-state" id="sessions-empty">
+      <div class="empty-graphic"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg></div>
+      <div class="empty-title">No Sessions Yet</div>
+      <div class="empty-sub">Record your first call and it'll appear here. Analysis comes back in about 10 minutes.</div>
+    </div>
+    <div id="sessions-list"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     POST FLOW
+══════════════════════════════ -->
+<div class="post-screen" id="post-1">
+  <div class="post-header"><div class="post-title">Call Saved</div><div class="post-step">Step 1 of 3</div></div>
+  <div class="post-body">
+    <div class="conf-card">
+      <div class="conf-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div class="conf-label">Recording Captured</div>
+      <div class="conf-duration" id="conf-duration">0:00:00</div>
+      <div class="conf-meta-text" id="conf-meta">Saved successfully</div>
+    </div>
+    <button class="btn-primary" onclick="goPost(2)">Next — Self Assessment</button>
+  </div>
+</div>
+
+<div class="post-screen" id="post-2">
+  <div class="post-header"><div class="post-title">Self Assessment</div><div class="post-step">Step 2 of 3</div></div>
+  <div class="post-body">
+    <div class="assess-block">
+      <div class="assess-sublabel">🎤 Tap mic · talk it in</div>
+      <div class="assess-label">One thing that went well</div>
+      <div class="voice-wrap">
+        <textarea class="voice-ta" id="assess-win" placeholder="What worked? Tap the mic and talk..."></textarea>
+        <button class="field-mic-btn" id="mic-win" onclick="startFieldMic('assess-win','mic-win')">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint">Typing works too</div>
+    </div>
+    <div class="assess-block">
+      <div class="assess-sublabel">🎤 Tap mic · talk it in</div>
+      <div class="assess-label">One thing to work on</div>
+      <div class="voice-wrap">
+        <textarea class="voice-ta" id="assess-struggle" placeholder="What was hard? Tap the mic and talk..."></textarea>
+        <button class="field-mic-btn" id="mic-struggle" onclick="startFieldMic('assess-struggle','mic-struggle')">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint">Typing works too</div>
+    </div>
+    <button class="btn-primary" onclick="goPost(3)">Next</button>
+    <button class="btn-ghost" onclick="goPost(3)">Skip for now</button>
+  </div>
+</div>
+
+<div class="post-screen" id="post-3">
+  <div class="post-header"><div class="post-title">Almost Ready</div><div class="post-step">Step 3 of 3</div></div>
+  <div class="post-body">
+    <div class="almost-card">
+      <div class="ar-ring"><svg viewBox="0 0 24 24"><polyline points="13 2 13 9 20 9"/><path d="M21 14A9 9 0 1 1 14 3"/></svg></div>
+      <div class="ar-title">Your Analysis Is Almost Ready</div>
+      <div class="ar-sub">Transcription is processing. Your coaching will be waiting in Past Sessions in about 10 minutes.</div>
+    </div>
+    <div class="assess-block">
+      <div class="assess-sublabel">🎤 Tap mic · talk it in</div>
+      <div class="assess-label">Any call notes? <span style="font-size:14px;font-weight:300;color:var(--text-muted)">(Optional)</span></div>
+      <div class="voice-wrap">
+        <textarea class="voice-ta" id="assess-notes" placeholder="Something the customer said, gut feeling, follow-up reminders..." style="min-height:100px"></textarea>
+        <button class="field-mic-btn" id="mic-notes" onclick="startFieldMic('assess-notes','mic-notes')">
+          <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        </button>
+      </div>
+      <div class="mic-hint">Typing works too</div>
+    </div>
+    <button class="btn-primary" onclick="finishPost()">Done — Back to Home</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav id="bottom-nav">
+  <div class="nav-items">
+    <button class="nav-btn active" id="nav-home" onclick="switchScreen('home')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="nav-label">Home</span>
+    </button>
+    <button class="nav-btn" id="nav-record" onclick="switchScreen('record')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor" stroke="none"/></svg>
+      <span class="nav-label">Record</span>
+    </button>
+    <button class="nav-btn" id="nav-sessions" onclick="switchScreen('sessions')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>
+      <span class="nav-label">Sessions</span>
+    </button>
+  </div>
+</nav>
+</div>
+
+<script>
+const S = { onboarded:false, profile:{}, calls:[], recording:false, mediaRecorder:null, audioChunks:[], audioBlob:null, timerInterval:null, seconds:0, pendingCall:null, obStep:1, obAnswers:{struggles:[]} };
+
+function persist() { try { localStorage.setItem('fc_v4', JSON.stringify({onboarded:S.onboarded,profile:S.profile,calls:S.calls})); } catch(e){} }
+function hydrate() { try { const d=localStorage.getItem('fc_v4'); if(d){const p=JSON.parse(d);S.onboarded=p.onboarded||false;S.profile=p.profile||{};S.calls=p.calls||[];} } catch(e){} }
+
+hydrate();
+if(S.onboarded){ document.getElementById('screen-onboard').classList.remove('active'); document.getElementById('bottom-nav').classList.add('visible'); switchScreen('home'); setupApp(); }
+
+function showQuestions(){ document.getElementById('ob-welcome').style.display='none'; document.getElementById('ob-questions').classList.add('active'); }
+function checkQ1(){ document.getElementById('ob-next-btn').disabled=!document.getElementById('input-name').value.trim(); }
+
+function pickOne(el){
+  const q=el.dataset.q;
+  document.querySelectorAll(`.choice[data-q="${q}"]`).forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+  S.obAnswers[q]=el.dataset.v;
+  document.getElementById('ob-next-btn').disabled=false;
+}
+
+function pickTwo(el){
+  const already=el.classList.contains('selected');
+  const count=document.querySelectorAll('.choice[data-q="struggles"].selected').length;
+  if(already){ el.classList.remove('selected'); S.obAnswers.struggles=S.obAnswers.struggles.filter(v=>v!==el.dataset.v); }
+  else { if(count>=2)return; el.classList.add('selected'); S.obAnswers.struggles.push(el.dataset.v); }
+  const n=S.obAnswers.struggles.length;
+  document.getElementById('pick-badge').textContent=`${n} / 2`;
+  document.getElementById('ob-next-btn').disabled=n<2;
+}
+
+function obNext(){ if(S.obStep<5) setObStep(S.obStep+1); else finishOnboarding(); }
+function obBack(){ if(S.obStep>1) setObStep(S.obStep-1); }
+
+function setObStep(step){
+  document.getElementById(`ob-q${S.obStep}`).style.display='none';
+  S.obStep=step;
+  document.getElementById(`ob-q${step}`).style.display='';
+  document.getElementById('ob-q-label').textContent=`Question ${step} of 5`;
+  for(let i=1;i<=5;i++){ const s=document.getElementById(`seg-${i}`); s.className='ob-seg'+(i<step?' done':i===step?' active':''); }
+  document.getElementById('ob-back-btn').style.display=step>1?'':'none';
+  document.getElementById('ob-next-btn').textContent=step===5?'Start Coaching →':'Continue';
+  const sq={2:'style',4:'goal',5:'tone'};
+  if(sq[step]) document.getElementById('ob-next-btn').disabled=!S.obAnswers[sq[step]];
+  else if(step===3) document.getElementById('ob-next-btn').disabled=S.obAnswers.struggles.length<2;
+  else if(step===1) checkQ1();
+  document.getElementById('ob-q-body').scrollTop=0;
+}
+
+function finishOnboarding(){
+  S.profile={ name:document.getElementById('input-name').value.trim(), style:S.obAnswers.style, struggles:[...S.obAnswers.struggles], goal:S.obAnswers.goal, tone:S.obAnswers.tone, joinedAt:new Date().toISOString() };
+  S.onboarded=true; persist();
+  document.getElementById('screen-onboard').classList.remove('active');
+  document.getElementById('bottom-nav').classList.add('visible');
+  setupApp(); switchScreen('home');
+  showToast(`Let's go, ${S.profile.name} 🔥`);
+}
+
+function setupApp(){
+  const pill=document.getElementById('home-name-pill');
+  if(S.profile.name) pill.textContent=S.profile.name.toUpperCase();
+  const focus=generateFocus();
+  if(focus){ document.getElementById('rec-focus').style.display=''; document.getElementById('rec-focus-text').textContent=focus; }
+  updateTopTrend(); renderSessions();
+}
+
+function generateFocus(){
+  if(!S.profile.struggles?.length) return null;
+  const map={ discovery:"Ask 3 open-ended pain questions before you mention the system.", emotional:"Find the real reason they want this fixed. Go one layer deeper than their first answer.", trust:"Share one specific story of a past customer in a similar situation before presenting.", rapport:"Get them talking about themselves for 2 minutes before you go anywhere near HVAC.", urgency:"Connect the cost of waiting to something real in their life before presenting options.", presenting:"Lead with outcomes — what life looks like after this is installed — before any equipment talk.", objections:"When price comes up, pause 2 full seconds before you say a word.", close:"After your recommendation say 'Does this feel like the right move?' then stay completely quiet.", control:"If they go off track, bring it back with 'That's a great point — let me tie that back to what we found today.'", signals:"Watch for questions about timeline or installation — that's them already picturing it." };
+  return map[S.profile.struggles[0]]||null;
+}
+
+function updateTopTrend(){
+  const n=S.calls.length, main=document.getElementById('tt-main'), sub=document.getElementById('tt-sub'), cta=document.getElementById('tt-cta');
+  if(n===0){ main.innerHTML='Session 1<br>Ready'; sub.textContent='Your coaching starts the moment you hit record. Everything builds from call one.'; cta.textContent='→ Start your first recording'; }
+  else { main.innerHTML=`${n}<br><span style="font-size:0.42em;letter-spacing:2px;color:var(--text-dim)">SESSION${n>1?'S':''} LOGGED</span>`; sub.textContent=`${n} session${n>1?'s':''} in. Your coaching gets sharper every call.`; cta.textContent='→ Record your next call'; }
+  cta.onclick=()=>switchScreen('record');
+}
+
+function switchScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const nb=document.getElementById(`nav-${name}`); if(nb) nb.classList.add('active');
+}
+
+async function toggleRecord(){ if(!S.recording) await startRecording(); else stopRecording(); }
+
+async function startRecording(){
+  try {
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    const mime=MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':'';
+    S.audioChunks=[]; S.mediaRecorder=new MediaRecorder(stream,mime?{mimeType:mime}:{});
+    S.mediaRecorder.ondataavailable=e=>{if(e.data.size>0)S.audioChunks.push(e.data);};
+    S.mediaRecorder.start(1000); S.recording=true; S.seconds=0;
+    document.getElementById('rec-btn').classList.add('recording');
+    document.getElementById('rec-pulse').classList.add('on');
+    document.getElementById('rec-timer').classList.add('live');
+    document.getElementById('rec-status').textContent='Recording';
+    document.getElementById('rec-btn-label').textContent='Stop';
+    document.getElementById('rec-hint').textContent='Tap to stop and save';
+    S.timerInterval=setInterval(()=>{S.seconds++;document.getElementById('rec-timer').textContent=fmtTime(S.seconds);},1000);
+  } catch(err){ showToast('Microphone access needed'); }
+}
+
+function stopRecording(){
+  clearInterval(S.timerInterval); S.recording=false;
+  if(S.mediaRecorder?.state!=='inactive'){ S.mediaRecorder.stop(); S.mediaRecorder.stream.getTracks().forEach(t=>t.stop()); }
+  S.mediaRecorder.onstop=()=>{ const mime=S.audioChunks[0]?.type||'audio/webm'; S.audioBlob=new Blob(S.audioChunks,{type:mime}); };
+  document.getElementById('rec-btn').classList.remove('recording');
+  document.getElementById('rec-pulse').classList.remove('on');
+  document.getElementById('rec-timer').classList.remove('live');
+  document.getElementById('rec-status').textContent='Ready';
+  document.getElementById('rec-timer').textContent='0:00:00';
+  document.getElementById('rec-btn-label').textContent='Record';
+  document.getElementById('rec-hint').textContent='Tap to start recording';
+  S.pendingCall={ id:Date.now(), name:document.getElementById('meta-name').value.trim()||null, tag1:document.getElementById('meta-tag1').value.trim()||null, tag2:document.getElementById('meta-tag2').value.trim()||null, duration:S.seconds, date:new Date().toISOString() };
+  ['meta-name','meta-tag1','meta-tag2'].forEach(id=>document.getElementById(id).value='');
+  openPost(1);
+}
+
+function fmtTime(s){ const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60; return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`; }
+
+function openPost(step){
+  document.querySelectorAll('.post-screen').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`post-${step}`).classList.add('active');
+  if(step===1){ document.getElementById('conf-duration').textContent=fmtTime(S.pendingCall.duration); const meta=S.pendingCall.name||new Date(S.pendingCall.date).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); document.getElementById('conf-meta').textContent=meta; }
+}
+
+function goPost(step){ openPost(step); }
+
+function finishPost(){
+  const call={...S.pendingCall,win:document.getElementById('assess-win').value,struggle:document.getElementById('assess-struggle').value,notes:document.getElementById('assess-notes').value};
+  S.calls.unshift(call); persist();
+  ['assess-win','assess-struggle','assess-notes'].forEach(id=>document.getElementById(id).value='');
+  document.querySelectorAll('.post-screen').forEach(p=>p.classList.remove('active'));
+  updateTopTrend(); renderSessions(); switchScreen('home');
+  showToast('Analysis on its way 🔥');
+}
+
+function renderSessions(){
+  const list=document.getElementById('sessions-list'), empty=document.getElementById('sessions-empty');
+  list.innerHTML='';
+  if(!S.calls.length){ empty.style.display=''; return; }
+  empty.style.display='none';
+  S.calls.forEach(call=>{
+    const date=new Date(call.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}), time=new Date(call.date).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}), name=call.name||`Session — ${date}`, tags=[call.tag1,call.tag2].filter(Boolean).join(' · ');
+    const card=document.createElement('div'); card.className='session-card';
+    card.innerHTML=`<div class="sc-top"><div class="sc-indicator"></div><div class="sc-info"><div class="sc-name">${name}</div><div class="sc-meta">${date} · ${time}${tags?' · '+tags:''}</div></div><div class="sc-dur">${fmtTime(call.duration)}</div></div>`;
+    list.appendChild(card);
+  });
+}
+
+let activeRec=null;
+
+function startVoiceName(){
+  const btn=document.getElementById('name-mic-btn');
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){ showToast('Voice not supported — type instead'); return; }
+  if(activeRec){ activeRec.stop(); return; }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition, r=new SR();
+  r.lang='en-US'; r.continuous=false; r.interimResults=false;
+  btn.classList.add('listening'); activeRec=r;
+  r.onresult=e=>{ document.getElementById('input-name').value=e.results[0][0].transcript; checkQ1(); };
+  r.onend=()=>{ btn.classList.remove('listening'); activeRec=null; };
+  r.onerror=()=>{ btn.classList.remove('listening'); activeRec=null; };
+  r.start();
+}
+
+function startFieldMic(taId,btnId){
+  const btn=document.getElementById(btnId);
+  if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){ showToast('Voice not supported — type instead'); return; }
+  if(activeRec){ activeRec.stop(); btn.classList.remove('listening'); activeRec=null; return; }
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition, r=new SR();
+  r.lang='en-US'; r.continuous=true; r.interimResults=false;
+  btn.classList.add('listening'); activeRec=r;
+  r.onresult=e=>{ const ta=document.getElementById(taId); for(let i=e.resultIndex;i<e.results.length;i++){ if(e.results[i].isFinal) ta.value+=(ta.value?' ':'')+e.results[i][0].transcript; } };
+  r.onend=()=>{ btn.classList.remove('listening'); activeRec=null; };
+  r.onerror=()=>{ btn.classList.remove('listening'); activeRec=null; };
+  r.start();
+}
+
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+function showComingSoon(name){ showToast(`${name} coming in V2`); }
+</script>
+</body>
+</html>
